@@ -1,0 +1,16 @@
+# Виртуальное окружение
+.venv/
+venv/
+env/
+
+# Настройки IDE (PyCharm, VS Code и т.д.)
+.idea/
+.vscode/
+
+# Кэш Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Файлы ОС
+.DS_Store
