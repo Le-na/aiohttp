@@ -11,13 +11,6 @@ from aiohttp import web
     request - входящий запрос от клиета. он передается в prepare, чтобы запомнить от кого подключение
 """
 
-async def websocket_handler(request):
-    ws = web.WebSocketResponse() #создаю соединение для WebSocket, оно пока что не подключенно
-    await ws.prepare(request)   # вот тут происходит подключение соединения с клиентом
-    async for msg in ws:    # цикл в котором слушается подключеенное соединние. msg - это одно сообщение
-        await ws.send_str(msg.data)   # отправяю обратно клиенту текст сообщения(msg.data).
-        # получила "привет" и отправила "привет!"
-    return ws
 
 
 def create_app():
