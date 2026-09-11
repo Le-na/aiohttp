@@ -1,3 +1,4 @@
+import aiohttp
 from aiohttp import web
 
 
@@ -37,12 +38,20 @@ async def auth_middleware(request, handler):
         return web.json_response({"error": "unauthorized"}, status=401)
 
 
+async def ws_websocket_handler(request):
+    ws = web.WebSocketResponse()
+    await ws.prepare(request)
+    async for msg in ws:
+        if msg.type == aiohttp.WSMsgType.TEXT:
+            await ws.send_str(msg.data.upper())
+
 def create_app():
     app = web.Application()
     app.router.add_get("/add", add)
     app.router.add_get("/greet", greet)
     app.router.add_post("/echo", echo)
     app.router.add_get("/stats", stats) #регистрируем, чтобы сервер знал о hendler stats
+    app.router.add_get("/ws", ws_websocket_handler)
     app.middlewares.append(auth_middleware)
     app.on_startup.append(startup_counter)
     return app
