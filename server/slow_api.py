@@ -4,7 +4,7 @@ from aiohttp import web
 
 
 async def slow_api(request):
-    await asyncio.sleep(10)
+    await asyncio.sleep(1)
     return web.json_response({"data":"finnaly"})
 
 
