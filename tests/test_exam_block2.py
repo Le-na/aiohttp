@@ -2,7 +2,6 @@ from aiohttp.test_utils import TestClient, TestServer
 import pytest
 from server.exam_server import create_app
 
-
 @pytest.fixture
 async def client():
     server = TestServer(create_app())
@@ -42,3 +41,23 @@ async def test_post_with_key(client):
                              headers={"X-API-KEY":"secret123"})
     assert resp.status == 200
 
+
+
+@pytest.mark.parametrize(("a", "b", "expected"), [
+    (2, 3, 5),
+    (10, -3, 7),
+    (0, 0, 0),
+])
+async def test_add_parametrized(client, a, b, expected):
+    resp = await client.get(f"/add?a={a}&b={b}")
+    assert resp.status == 200
+    data = await resp.json()
+    assert data["result"] == expected
+
+
+async def test_ws(client):
+    ws = await client.ws_connect("/ws")
+    await ws.send_str("привет")
+    msg = await ws.receive_str()
+    assert msg == "ПРИВЕТ"
+    await ws.close()

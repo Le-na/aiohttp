@@ -3,6 +3,7 @@ import pytest
 from server.api import create_app
 
 
+
 @pytest.fixture
 async def client():
     server = TestServer(create_app())
@@ -24,8 +25,6 @@ async def test_status(method, client, url, expected_status):
     elif method == "POST":
         resp = await client.post(url, json={"message":"привет"})
         assert resp.status == expected_status
-
-
 
 
 
