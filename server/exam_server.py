@@ -2,10 +2,6 @@ import aiohttp
 from aiohttp import web
 
 
-async def add(request):
-    request.app["visits"] += 1  #увеличиваем на 1
-    return web.json_response({"result": int(request.query["a"]) + int(request.query["b"])})
-
 async def greet(request):
     name = request.query.get("name", "гость")
     return web.json_response({"hello": f"Привет, {name}"})
@@ -22,6 +18,12 @@ async def startup_counter(app):
     # Создаем один раз на старте, поэтому значение начинается с 0.
     # чтото вроде "Полки" внутри "хранилища" app
     app["visits"] = 0
+
+
+async def add(request):
+    request.app["visits"] += 1  #увеличиваем на 1
+    return web.json_response({"result": int(request.query["a"]) + int(request.query["b"])})
+
 
 async def stats(request):   #Читаем "полку" request.app и возвращаем результат
     return web.json_response({'visits': request.app['visits']})

@@ -1,4 +1,3 @@
-import pytest
 from aiohttp.test_utils import TestClient, TestServer
 import pytest
 from server.server_hello import create_app
