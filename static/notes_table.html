@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Заметки</title>
+<style>
+  body { font-family: sans-serif; max-width: 600px; margin: 30px auto; background: #f5f5f5; }
+  h1 { color: #333; }
+  table { border-collapse: collapse; width: 100%; background: white; }
+  th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+  th { background: #4a90d9; color: white; }
+  tr:hover { background: #f0f7ff; }
+  button {
+    background: #d9534f; color: white; border: none;
+    padding: 5px 12px; border-radius: 4px; cursor: pointer;
+  }
+  button:hover { background: #b9423e; }
+  #status { margin: 10px 0; color: #666; min-height: 20px; }
+
+  /* форма добавления */
+  #add-form {
+    background: white; padding: 15px; margin-bottom: 15px;
+    border: 1px solid #ddd; border-radius: 6px;
+  }
+  #add-form input {
+    padding: 8px; width: 70%; border: 1px solid #ccc; border-radius: 4px;
+  }
+  #add-form button {
+    background: #4a90d9; margin-left: 10px; padding: 8px 16px;
+  }
+  #add-form button:hover { background: #3570b0; }
+</style>
+</head>
+<body>
+<h1>Мои заметки</h1>
+<div id="status">Загружаю заметки с сервера...</div>
+
+<!-- ФОРМА ДОБАВЛЕНИЯ: Елена, это твоя часть (кнопка + JS ниже) -->
+<div id="add-form">
+  <input type="text" id="note-text" placeholder="Текст новой заметки">
+  <button onclick="addNote()">Добавить</button>
+</div>
+
+<table id="notes-table">
+  <tr><th>ID</th><th>Текст</th><th>Действие</th></tr>
+  <!-- строки появятся сами, когда загрузятся данные -->
+</table>
+
+<script>
+  // ====== 1. ЗАГРУЗКА ТАБЛИЦЫ: GET /notes ======
+  function loadNotes() {
+    fetch("/notes")                      // GET — лысый, без опций
+      .then(function (resp) {
+        return resp.json();              // тело ответа → массив заметок
+      })
+      .then(function (notes) {
+        var table = document.getElementById("notes-table");
+
+        // стираем старые строки, кроме заголовка
+        while (table.rows.length > 1) {
+          table.deleteRow(1);
+        }
+
+        // добавляем строку для каждой заметки
+        notes.forEach(function (note) {
+          var row = table.insertRow(-1);           // новая строка в конец
+          row.insertCell(0).textContent = note.id;
+          row.insertCell(1).textContent = note.text;
+          var cell = row.insertCell(2);
+
+          var btn = document.createElement("button");
+          btn.textContent = "Удалить";
+          btn.onclick = function () { del(note.id, row); };  // ЗАМЫКАНИЕ: id попал в кнопку!
+          cell.appendChild(btn);
+        });
+
+        document.getElementById("status").textContent =
+          "Заметок на полке: " + notes.length;
+      });
+  }
+
+  // ====== 2. УДАЛЕНИЕ: DELETE /notes/{id} ======
+  // Елена, допиши сама по образцу loadNotes:
+  // fetch("/notes/" + id, { method: ??? })
+  // потом .then → если resp.ok → row.remove() → loadNotes()
+  function del(id, row) {
+    fetch("/notes/" + id, { method: "DELETE" })
+      .then(function (resp) {
+        if (resp.ok) {
+          row.remove();
+          document.getElementById("status").textContent =
+            "Заметка " + id + " удалена (сервер: " + resp.status + ")";
+        }
+      });
+  }
+
+  // ====== 3. СОЗДАНИЕ: POST /notes ======
+  // Елена, это целиком твоя часть. Подсказки:
+  // - достать текст: document.getElementById("note-text").value
+  // - fetch("/notes", { method: "POST", headers: {"Content-Type": "application/json"}, body: ??? })
+  //   body — это ТЕЛО ЗАПРОСА. Твой create_note ждёт {"text": "..."}!
+  //   Собери его: JSON.stringify({ text: <текст из поля> })
+  // - после ответа: очистить поле, вызвать loadNotes() — таблица перерисуется с новой заметкой!
+  function addNote() {
+    var input = document.getElementById("note-text");
+    var text = input.value;
+
+    fetch("/notes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: text })
+    })
+      .then(function (resp) {
+        if (resp.status === 201) {         // СОЗДАНО!
+          input.value = "";                  // очистить поле
+          loadNotes();                       // перерисовать таблицу
+          document.getElementById("status").textContent = "Заметка создана!";
+        }
+      });
+  }
+
+  // При открытии страницы — сразу грузим заметки
+  loadNotes();
+</script>
+</body>
+</html>
