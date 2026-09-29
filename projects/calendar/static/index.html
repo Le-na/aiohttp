@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Октябрь 2026 · Японский справочник сочетаний цветов</title>
+  <style>
+    /* ── Тема по умолчанию: «Ханами», сочетание №150 из справочника
+       Сандзо Вады. Остальные 14 тем JS подставляет в эти же переменные. ── */
+    :root {
+      --bg:      #ffcfc4;   /* фон страницы */
+      --ink:     #0f261f;   /* главный цвет текста */
+      --stamp:   #0f261f;   /* акцент (OCTOBER, точки, «удалить») */
+      --text:    #0f261f;   /* основной текст */
+      --cell-top:#ffffff;   /* градиент ячейки: блик */
+      --cell-mid: #ffcfc4;  /*   …основной тон */
+      --cell-edge:#b3e8c2;  /*   …тёмный край */
+      --active-a:#b3e8c2;   /* выбранная ячейка */
+      --active-b:#65a98f;
+      --line:    rgba(15, 38, 31, .35);
+      --hover:   rgba(15, 38, 31, .45);
+      --head:    rgba(255, 207, 196, .6);
+      --empty:   rgba(255, 207, 196, .55);
+      --dim:     rgba(15, 38, 31, .30);
+      --glow:    rgba(101, 169, 143, .75);
+      --popup:   linear-gradient(160deg, #ffffff, #ffcfc4);
+      --btn-hover:#ffcfc4;
+      --ok-fg:   #ffffff;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Georgia, serif;
+      color: var(--text);
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 30px 16px;
+    }
+
+    /* ── Шапка: верхняя треть, три надписи ──────────────────── */
+    .header {
+      width: min(875px, 100%);
+      display: flex;
+      align-items: center;
+      padding: 56px 22px 10px;   /* сверху 56px: надписи опускаются от верха страницы */
+    }
+    .header .year {
+      flex: 1;               /* левая половина шапки */
+      font-size: 28px;
+      font-weight: bold;
+      color: var(--ink);
+      letter-spacing: .08em;
+    }
+    .header .month-num {
+      font-size: 140px;            /* в ~5 раз больше соседних надписей */
+      line-height: 1;
+      font-weight: bold;
+      color: var(--ink);
+    }
+    .header .month-name {
+      flex: 1;               /* правая половина — равна левой, поэтому */
+      text-align: right;     /* центр «10» = точный центр таблицы */
+      font-family: Georgia, serif;
+      font-weight: 700;
+      font-size: 46px;
+      line-height: 1;
+      color: var(--stamp);
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    /* ── Окошко выбора темы: справа сверху над таблицей ─────── */
+    .theme-bar {
+      width: min(875px, 100%);
+      display: flex;
+      justify-content: flex-end;   /* прижать вправо */
+      padding: 0 22px;
+      z-index: 20;
+    }
+    .theme-box { position: relative; }
+    .theme-btn {
+      font: bold 14px Georgia, serif;
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1.5px solid var(--ink);
+      background: var(--popup);
+      color: var(--ink);
+      cursor: pointer;
+    }
+    .theme-btn:hover { background: var(--btn-hover); }
+    .theme-panel {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 6px);
+      min-width: 240px;
+      max-height: 320px;
+      overflow-y: auto;
+      background: var(--popup);
+      border: 1.5px solid var(--ink);
+      border-radius: 10px;
+      padding: 8px;
+      display: none;
+      flex-direction: column;
+      gap: 2px;
+      box-shadow: 0 12px 30px var(--dim);
+      z-index: 30;
+    }
+    .theme-panel.open { display: flex; }
+    .theme-opt {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 6px 8px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      cursor: pointer;
+      font: 14px Georgia, serif;
+      color: var(--text);
+      text-align: left;
+    }
+    .theme-opt:hover { background: var(--btn-hover); }
+    .theme-opt.current { font-weight: bold; }
+    .theme-opt .sw { display: inline-flex; gap: 2px; flex-shrink: 0; }
+    .theme-opt .sw i {
+      width: 14px; height: 14px;
+      border-radius: 3px;
+      border: 1px solid var(--line);
+      display: block;
+    }
+
+    /* ── Таблица: нижние две трети ───────────────────────────── */
+    .calendar-wrap {
+      width: min(875px, 100%);
+      margin-top: 14px;   /* как было */
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    /* фиксированная строка дней недели */
+    .weekdays th {
+      padding: 9px 0;
+      font-size: 19px;
+      font-weight: bold;
+      letter-spacing: .06em;
+      color: var(--ink);
+      background: var(--head);
+      border-bottom: 2px solid var(--line);
+      cursor: default;
+      user-select: none;
+    }
+
+    .days td {
+      height: 80px;
+      vertical-align: top;
+      padding: 14px 5px 5px;   /* сверху больше: дата опускается в ячейке */
+      font-size: 19px;
+      color: var(--text);
+      border: 1px solid var(--line);
+      background: var(--cell-mid);   /* однотонный цвет, без штриховки-градиента */
+      cursor: pointer;
+      transition: background .15s, box-shadow .15s;
+      position: relative;
+      user-select: none;
+    }
+
+    .days td:hover {
+      box-shadow: inset 0 0 0 2px var(--hover);
+    }
+
+    .days td.active {
+      background: var(--active-a);   /* однотонный цвет выделения */
+      border-color: var(--active-b);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 0 14px var(--glow);
+      font-weight: bold;
+    }
+
+    /* текст заметки — виден прямо в ячейке под датой */
+    .days td .note {
+      display: block;
+      font-size: 11px;
+      line-height: 1.2;
+      font-weight: normal;        /* в активной ячейке дата жирная, текст — нет */
+      color: var(--text);
+      opacity: .85;
+      overflow: hidden;
+      max-height: 3.6em;         /* максимум 3 строки, остальное скрыто */
+      word-break: break-word;
+    }
+
+    .days td.empty {
+      background: var(--bg);      /* сливается с общим фоном страницы */
+      border: none;   /* своей рамки нет; линия соседней ячейки при
+                         border-collapse остаётся видимой (none
+                         проигрывает solid) */
+      cursor: default;
+      pointer-events: none; /* пустые ячейки некликабельны */
+    }
+
+    /* ── Всплывающее окно (поп-ап) ───────────────────────────── */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--dim);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 40;
+    }
+    .overlay.open { display: flex; }
+
+    .popup {
+      width: min(380px, calc(100vw - 40px));
+      background: var(--popup);
+      border: 2px solid var(--ink);
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: 0 12px 40px var(--dim);
+    }
+    .popup h3 { margin: 0 0 10px; font-size: 17px; color: var(--ink); }
+    .popup textarea {
+      width: 100%;
+      height: 90px;
+      border: 1.5px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 8px;
+      font: 14px Georgia, serif;
+      color: var(--text);
+      resize: vertical;
+    }
+    .popup .btns { display: flex; gap: 10px; margin-top: 12px; justify-content: flex-end; }
+    .popup button {
+      font: bold 14px Georgia, serif;
+      padding: 8px 18px;
+      border-radius: 8px;
+      border: 1.5px solid var(--ink);
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+    }
+    .popup button:hover { background: var(--btn-hover); }
+    .popup button.ok {
+      background: var(--ink);
+      color: var(--ok-fg);
+    }
+    .popup button.del {
+      border-color: var(--stamp);
+      color: var(--stamp);
+      margin-right: auto;          /* кнопка удаления — влево, отдельно */
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="year">2026</div>
+    <div class="month-num">10</div>
+    <div class="month-name">october</div>
+  </div>
+
+  <!-- Окошко выбора темы -->
+  <div class="theme-bar">
+    <div class="theme-box">
+      <button class="theme-btn" id="theme-btn">Тема: …</button>
+      <div class="theme-panel" id="theme-panel"></div>
+    </div>
+  </div>
+
+  <div class="calendar-wrap">
+    <table class="weekdays-table">
+      <thead>
+        <tr class="weekdays">
+          <th>Пн</th><th>Вт</th><th>Ср</th><th>Чт</th><th>Пт</th><th>Сб</th><th>Вс</th>
+        </tr>
+      </thead>
+    </table>
+    <table class="days-table" id="grid"><tbody class="days"></tbody></table>
+  </div>
+
+  <!-- Всплывающее окно -->
+  <div class="overlay" id="overlay">
+    <div class="popup" role="dialog" aria-modal="true">
+      <h3 id="popup-title">Запись на дату</h3>
+      <textarea id="note-input" placeholder="Что запланировано?"></textarea>
+      <div class="btns">
+        <button class="del" id="btn-del">Удалить</button>
+        <button id="btn-cancel">Отмена</button>
+        <button class="ok" id="btn-ok">ОК</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ============================================================
+       Данные октября 2026: источник истины — Python calendar:
+         monthrange(2026, 10) = (THURSDAY, 31)
+         1-е число — четверг → 3 пустые ячейки в начале
+       ============================================================ */
+    const YEAR = 2026, MONTH = 10, DAYS = 31, FIRST = 3; // 3 = четверг (Пн=0)
+
+    const weekdays = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
+
+    /* ============================================================
+       15 ТЕМ — из «Японского справочника сочетаний цветов»
+       (Сандзо Вада, «A Dictionary of Color Combinations», 1933).
+       В имени каждой темы — номер сочетания из книги.
+       Все hex — настоящие цвета справочника; для двухцветных
+       пастельных пар тёмный «якорь» взят из родственного
+       сочетания книги, где тот же пастел сочетается с тёмным.
+       ============================================================ */
+    const THEMES = {
+      hanami:   { name: "Ханами · Вада №150",
+                  bg:"#ffcfc4", ink:"#0f261f", stamp:"#0f261f", text:"#0f261f",
+                  top:"#ffffff", mid:"#ffcfc4", edge:"#b3e8c2",
+                  actA:"#b3e8c2", actB:"#65a98f" },
+      cherry:   { name: "Вишнёвый сад · Вада №169",
+                  bg:"#fff59e", ink:"#1b3644", stamp:"#1b3644", text:"#1b3644",
+                  top:"#ffffff", mid:"#ffa6d9", edge:"#9cb29e",
+                  actA:"#ffa6d9", actB:"#e62e73" },
+      kimono:   { name: "Кимоно · Вада №176",
+                  bg:"#ffcfc4", ink:"#6b2e63", stamp:"#6b2e63", text:"#6b2e63",
+                  top:"#ffffff", mid:"#ffb3f0", edge:"#80ffcc",
+                  actA:"#80ffcc", actB:"#008aa1" },
+      plum:     { name: "Сливовый вечер · Вада №18",
+                  bg:"#e6adcf", ink:"#2d0060", stamp:"#2d0060", text:"#2d0060",
+                  top:"#ffffff", mid:"#d1b0b3", edge:"#b08699",
+                  actA:"#cc85d1", actB:"#6f0043" },
+      spring:   { name: "Весенняя акварель · Вада №72",
+                  bg:"#f5f5b8", ink:"#202d85", stamp:"#202d85", text:"#202d85",
+                  top:"#ffffff", mid:"#abf5ed", edge:"#96bfe6",
+                  actA:"#80ffcc", actB:"#29bdad" },
+      nighttrain:{ name: "Ночной поезд · Вада №139",
+                  bg:"#b5d1cc", ink:"#000831", stamp:"#000831", text:"#000831",
+                  top:"#ffffff", mid:"#96bfe6", edge:"#417777",
+                  actA:"#96bfe6", actB:"#202d85" },
+      teaceremony:{ name: "Чайная церемония · Вада №239",
+                  bg:"#d99e73", ink:"#503d00", stamp:"#503d00", text:"#503d00",
+                  top:"#ffffff", mid:"#b08699", edge:"#c4bf33",
+                  actA:"#b3e8c2", actB:"#5c8a73" },
+      poster:   { name: "Ретро-плакат · Вада №60",
+                  bg:"#fff59e", ink:"#0d2b52", stamp:"#0d2b52", text:"#0d2b52",
+                  top:"#ffffff", mid:"#fff59e", edge:"#f5f5b8",
+                  actA:"#96bfe6", actB:"#202d85" },
+      iris:     { name: "Ирис · Вада №167",
+                  bg:"#c0b490", ink:"#202d85", stamp:"#202d85", text:"#202d85",
+                  top:"#ffffff", mid:"#abf5ed", edge:"#96bfe6",
+                  actA:"#cc85d1", actB:"#6b2e63" },
+      taupe:    { name: "Таупе · Вада №174",
+                  bg:"#bfabcc", ink:"#6b2e63", stamp:"#6b2e63", text:"#6b2e63",
+                  top:"#ffffff", mid:"#ffa6d9", edge:"#cc85d1",
+                  actA:"#f2ad78", actB:"#c2612c" },
+      pine:     { name: "Сосна и сакура · Вада №84",
+                  bg:"#ffcfc4", ink:"#0f261f", stamp:"#0f261f", text:"#0f261f",
+                  top:"#ffffff", mid:"#b3e8c2", edge:"#9cb29e",
+                  actA:"#b3e8c2", actB:"#5c8a73" },
+      haze:     { name: "Тёплая дымка · Вада №76",
+                  bg:"#9cb29e", ink:"#1b3644", stamp:"#1b3644", text:"#1b3644",
+                  top:"#ffffff", mid:"#fff59e", edge:"#f2ad78",
+                  actA:"#ffcfc4", actB:"#d94d99" },
+      tonkin:   { name: "Тонкин · Вада №11",
+                  bg:"#ebd999", ink:"#2d0060", stamp:"#2d0060", text:"#2d0060",
+                  top:"#ffffff", mid:"#9fc2b2", edge:"#b5d1cc",
+                  actA:"#bcd382", actB:"#58771e" },
+      wave:     { name: "Волна · Вада №119",
+                  bg:"#a6e6db", ink:"#0d2b52", stamp:"#0d2b52", text:"#0d2b52",
+                  top:"#ffffff", mid:"#a6e6db", edge:"#96bfe6",
+                  actA:"#80ffcc", actB:"#008aa1" },
+      flamingo: { name: "Ретро-фламинго · Вада №223",
+                  bg:"#d99e73", ink:"#503d00", stamp:"#503d00", text:"#503d00",
+                  top:"#ffffff", mid:"#b08699", edge:"#c0b490",
+                  actA:"#b5ffc2", actB:"#5c8a73" },
+    };
+
+    /* ── применение темы: базовые цвета + производные ──────── */
+    function hexToRgb(hex) {
+      const n = parseInt(hex.slice(1), 16);
+      return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    }
+    function rgba(hex, a) {
+      const [r, g, b] = hexToRgb(hex);
+      return "rgba(" + r + "," + g + "," + b + "," + a + ")";
+    }
+
+    const root = document.documentElement;
+
+    function applyTheme(key) {
+      const t = THEMES[key];
+      if (!t) return;
+      const s = root.style;
+      s.setProperty("--bg",       t.bg);
+      s.setProperty("--ink",      t.ink);
+      s.setProperty("--stamp",    t.stamp);
+      s.setProperty("--text",     t.text);
+      s.setProperty("--cell-top", t.top);
+      s.setProperty("--cell-mid", t.mid);
+      s.setProperty("--cell-edge",t.edge);
+      s.setProperty("--active-a", t.actA);
+      s.setProperty("--active-b", t.actB);
+      /* производные: линии/тени/затемнение наследуются от базовых */
+      s.setProperty("--line",     rgba(t.ink, .35));
+      s.setProperty("--hover",    rgba(t.ink, .45));
+      s.setProperty("--head",     rgba(t.mid, .6));
+      s.setProperty("--empty",    rgba(t.bg, .55));
+      s.setProperty("--dim",      rgba(t.text, .30));
+      s.setProperty("--glow",    rgba(t.actB, .75));
+      s.setProperty("--popup",    "linear-gradient(160deg," + t.top + "," + t.mid + ")");
+      s.setProperty("--btn-hover", t.mid);
+      s.setProperty("--ok-fg",    t.top);
+
+      document.getElementById("theme-btn").textContent = "Тема: " + t.name;
+      document.querySelectorAll(".theme-opt").forEach(function (opt) {
+        opt.classList.toggle("current", opt.dataset.theme === key);
+      });
+      localStorage.setItem("theme-wada-2026-10", key);
+    }
+
+    /* ── построение окошка выбора: 15 кнопок с образцами ──── */
+    const panel = document.getElementById("theme-panel");
+    Object.keys(THEMES).forEach(function (key) {
+      const t = THEMES[key];
+      const btn = document.createElement("button");
+      btn.className = "theme-opt";
+      btn.dataset.theme = key;
+
+      const sw = document.createElement("span");
+      sw.className = "sw";
+      [t.bg, t.mid, t.actB].forEach(function (c) {   // фон/ячейка/выделение
+        const i = document.createElement("i");
+        i.style.background = c;
+        sw.appendChild(i);
+      });
+
+      const label = document.createElement("span");
+      label.textContent = t.name;
+      btn.appendChild(sw);
+      btn.appendChild(label);
+      btn.addEventListener("click", function () {
+        applyTheme(key);
+        panel.classList.remove("open");
+      });
+      panel.appendChild(btn);
+    });
+
+    const themeBtn = document.getElementById("theme-btn");
+    themeBtn.addEventListener("click", function () {
+      panel.classList.toggle("open");
+    });
+    /* клик мимо окошка — закрыть */
+    document.addEventListener("click", function (e) {
+      if (!panel.contains(e.target) && e.target !== themeBtn) {
+        panel.classList.remove("open");
+      }
+    });
+
+    /* при загрузке: сохранённая тема или ханами по умолчанию */
+    applyTheme(localStorage.getItem("theme-wada-2026-10") || "hanami");
+
+    /* ============================================================
+       Заметки: ключ — номер дня. localStorage; серверное API
+       ты подключишь сама. Ключ общий с октябрьской страницей —
+       заметки одного месяца доступны в обеих.
+       ============================================================ */
+
+const store = {
+  async load() {
+    try {
+      const resp = await fetch("http://127.0.0.1:8080/notes/${YEAR}/${MONTH}");
+      return await resp.json();
+    } catch {
+      return {};
+    }
+  },
+  async saveOne(day, text) {
+    await fetch(`http://127.0.0.1:8080/notes/${YEAR}/${MONTH}/${day}`, {
+      method: "PUT",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({text: text})
+    });
+  },
+  async removeOne(day) {
+    await fetch(`http://127.0.0.1:8080/notes/${YEAR}/${MONTH}/${day}`, {
+      method: "DELETE"
+    });
+  },
+};
+
+
+    // заметки грузятся с сервера асинхронно: строим сетку ТОЛЬКО когда
+    // ответ приехал — иначе notes ещё Promise, и ячейки будут пустыми
+    let notes = {};          // заполняется в init() после await
+    let activeCell = null;
+    let editingDay = null;   // какой день открыт в поп-апе
+
+    const tbody = document.querySelector("#grid tbody");
+    const overlay = document.getElementById("overlay");
+    const input = document.getElementById("note-input");
+    const popupTitle = document.getElementById("popup-title");
+
+    // построение сетки: строки-недели
+    function buildGrid() {
+      for (let w = 0; w < 5; w++) {
+        const tr = document.createElement("tr");
+        for (let d = 0; d < 7; d++) {
+          // n = номер дня. +1 потому что d=FIRST даёт ПЕРВЫЙ день месяца,
+          // а не нулевой: 1 октября при FIRST=3 (четверг) => d=3, n=1
+          const n = w * 7 + d - FIRST + 1;
+          if (n < 1 || n > DAYS) {
+            const td = document.createElement("td");
+            td.className = "empty";
+            tr.appendChild(td);
+            continue;
+          }
+          const td = document.createElement("td");
+          td.dataset.day = n;             // дата хранится в data-атрибуте
+          td.textContent = n;
+          if (notes[n]) td.appendChild(makeNote(notes[n]));
+          td.addEventListener("click", onDayClick);
+          tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+      }
+    }
+
+    async function init() {
+      notes = await store.load();   // ждём записи месяца с сервера
+      buildGrid();                  // и только потом рисуем сетку
+    }
+    init();
+
+    function makeNote(text) {
+      const s = document.createElement("span");
+      s.className = "note";
+      s.textContent = text;   // только textContent: заметка — текст пользователя
+      return s;
+    }
+
+    /* ── выделение ячейки + открытие окна ─────────────────── */
+    function onDayClick(e) {
+      const td = e.currentTarget;
+
+      // смена выделения: старая гаснет, новая загорается
+      if (activeCell !== null && activeCell !== td) {
+        activeCell.classList.remove("active");
+      }
+      activeCell = td;
+      td.classList.add("active");
+
+      openPopup(td.dataset.day);
+    }
+
+    function openPopup(day) {
+      editingDay = day;
+      popupTitle.textContent = "Запись на " + day + " октября 2026";
+      input.value = notes[day] || "";
+      overlay.classList.add("open");
+      input.focus();
+    }
+
+    /* ── кнопки окна ─────────────────────────────────────── */
+    document.getElementById("btn-ok").addEventListener("click", function () {
+      const text = input.value.trim();
+      if (text) {
+        notes[editingDay] = text;      // сохранить/изменить
+        store.saveOne(editingDay, text);   // и на сервер: PUT
+      } else {
+        delete notes[editingDay];      // пустой текст = удалить
+        store.removeOne(editingDay);   // и на сервер: DELETE
+      }
+      refreshNotes();
+      closePopup();
+    });
+
+    document.getElementById("btn-del").addEventListener("click", function () {
+      delete notes[editingDay];
+      store.removeOne(editingDay);
+      refreshNotes();
+      closePopup();
+    });
+
+    document.getElementById("btn-cancel").addEventListener("click", closePopup);
+    overlay.addEventListener("click", function (e) {
+      if (e.target === overlay) closePopup();  // клик по затемнению — закрыть
+    });
+
+    /* Enter в поле ввода = ОК (Shift+Enter — перенос строки) */
+    input.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();                     // без перевода строки
+        document.getElementById("btn-ok").click();
+      }
+    });
+
+    /* ── снятие выделения ─────────────────────────────────── */
+    function clearSelection() {
+      if (activeCell !== null) {
+        activeCell.classList.remove("active");
+        activeCell = null;
+      }
+    }
+
+    function closePopup() {
+      overlay.classList.remove("open");
+      editingDay = null;
+      clearSelection();       // ОК/Отмена/Esc/клик по затемнению — ячейка гаснет
+    }
+
+    /* клик мимо ячеек дат — погасить выделение */
+    document.addEventListener("click", function (e) {
+      if (overlay.classList.contains("open")) return;   // поп-ап управляет сам
+      if (e.target.closest && e.target.closest("#grid td[data-day]")) return;
+      clearSelection();
+    });
+
+    /* обновить видимые тексты заметок в ячейках */
+    function refreshNotes() {
+      document.querySelectorAll("#grid td[data-day]").forEach(function (td) {
+        const txt = notes[td.dataset.day] || "";
+        let el = td.querySelector(".note");
+        if (txt) {
+          if (!el) {
+            el = document.createElement("span");
+            el.className = "note";
+            td.appendChild(el);
+          }
+          el.textContent = txt;
+        } else if (el) {
+          el.remove();               // заметка удалена — текст исчезает из ячейки
+        }
+      });
+    }
+
+    // Esc закрывает окно
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && overlay.classList.contains("open")) closePopup();
+    });
+  </script>
+</body>
+</html>

@@ -1,3 +1,5 @@
+import os
+
 from aiohttp import web
 
 
@@ -35,11 +37,15 @@ async def save_note(request):
 
 
 async def delete_note(request):
-    pass
+    year = request.match_info["year"]
+    month = request.match_info["month"]
+    day = request.match_info["day"]
+    key = f"{year}-{month}"
 
-
-
-
+    notes = request.app["notes"]
+    month_notes = notes.get(key, {})
+    month_notes.pop(day, None)
+    return web.json_response({"deleted": day})
 
 
 
@@ -49,6 +55,7 @@ def create_app():
     app.router.add_put("/notes/{year}/{month}/{day}", save_note)
     app.router.add_delete("/notes/{year}/{month}/{day}", delete_note)
     app.on_startup.append(startup_calendar)
+    app.router.add_static("/static", os.path.join(os.path.dirname(__file__), "static"))
     return app
 
 
