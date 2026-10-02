@@ -1,4 +1,3 @@
-
 from aiohttp.test_utils import TestServer, TestClient
 import pytest
 from calendar_api import create_app
