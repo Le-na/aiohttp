@@ -1,11 +1,16 @@
 import os
+import sqlite3
 
 from aiohttp import web
 
 
 
 
-async def startup_calendar(app):
+async def init_bd(app):
+    conn = sqlite3.connect(os.path.join(os.path.dirname(__file__), "calendar.db"))
+    cur = conn.cursor()
+    cur.execute("CREATE TABLE IF NOT EXISTS notes (year TEXT, month TEXT, day TEXT, text TEXT)")
+    app["db"] = conn
     app["notes"] = {}
 
 
@@ -54,7 +59,7 @@ def create_app():
     app.router.add_get("/notes/{year}/{month}", list_notes)
     app.router.add_put("/notes/{year}/{month}/{day}", save_note)
     app.router.add_delete("/notes/{year}/{month}/{day}", delete_note)
-    app.on_startup.append(startup_calendar)
+    app.on_startup.append(init_bd)
     app.router.add_static("/static", os.path.join(os.path.dirname(__file__), "static"))
     return app
 
