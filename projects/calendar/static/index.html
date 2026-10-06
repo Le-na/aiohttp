@@ -472,7 +472,7 @@
 const store = {
   async load() {
     try {
-      const resp = await fetch("http://127.0.0.1:8080/notes/${YEAR}/${MONTH}");
+      const resp = await fetch(`http://127.0.0.1:8080/notes/${YEAR}/${MONTH}`);
       return await resp.json();
     } catch {
       return {};
