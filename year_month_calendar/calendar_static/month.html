@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Календарь — месяц</title>
+<style>
+  /* Фиолетово-сиреневая гамма: современный минимализм */
+  :root {
+    --bg:    #f6f3fb;                     /* светлая сирень — фон */
+    --card:  #ffffff;
+    --ink:   #30215c;                     /* глубокий фиолетовый — текст */
+    --mut:   rgba(48, 33, 92, .50);
+    --line:  rgba(48, 33, 92, .10);
+    --edge:  #a68ee6;                     /* сиреневый акцент */
+    --shadow: 0 1px 2px rgba(48, 33, 92, .04),
+              0 12px 32px rgba(48, 33, 92, .08);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh;
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI",
+                 Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink);
+    background: var(--bg); padding: 48px 20px 80px;
+  }
+  .page { width: min(640px, 100%); margin: 0 auto; }
+
+  .head { text-align: center; margin-bottom: 30px; }
+  .mname {
+    display: block; font-size: 34px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .12em;
+  }
+  .yr { font-size: 15px; color: var(--mut); font-weight: 500;
+        letter-spacing: .06em; }
+
+  table { width: 100%; border-collapse: collapse; table-layout: fixed;
+          background: var(--card); border-radius: 18px;
+          box-shadow: var(--shadow); }
+  th {
+    font-size: 11px; font-weight: 600; color: var(--mut);
+    text-align: center; padding: 14px 0 10px; letter-spacing: .08em;
+  }
+  th:nth-child(6), th:nth-child(7) { color: var(--edge); }
+  td {
+    height: 62px; text-align: center; font-size: 16px; font-weight: 500;
+    border: 1px solid var(--line);
+  }
+  /* пустые ячейки сливаются с фоном */
+  td.empty { border-color: transparent; background: transparent; }
+
+  .back { display: block; text-align: center; margin-top: 36px; }
+  .back a {
+    color: var(--ink); text-decoration: none; font-weight: 500;
+    border-bottom: 1px solid var(--edge);
+    padding-bottom: 2px;
+  }
+  .back a:hover { color: var(--edge); }
+
+  .status { padding: 30px 0; font-size: 16px; color: var(--mut); }
+</style>
+</head>
+<body>
+<div class="page">
+  <div id="app"></div>
+</div>
+
+<script>
+  const WEEKDAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+
+  // год и месяц приезжают в ссылке: month.html?year=2026&month=10
+  const params = new URLSearchParams(location.search);
+  const y = params.get("year");
+  const m = params.get("month");
+
+  const app = document.getElementById("app");
+
+  function backLink(year) {
+    const div = document.createElement("div");
+    div.className = "back";
+    const a = document.createElement("a");
+    a.href = year ? `year.html?year=${year}` : "year.html";
+    a.textContent = "≪ Все 12 месяцев";
+    div.append(a);
+    return div;
+  }
+
+  function fail(msg, year) {
+    const p = document.createElement("p");
+    p.className = "status";
+    p.textContent = msg;
+    app.replaceChildren(p, backLink(year));
+  }
+
+  async function main() {
+    try {
+      const resp = await fetch(`/calendar/${y}/${m}`);
+      if (!resp.ok) {
+        // сервер отвечает строкой или {"error": "..."} — покажем что есть
+        let msg = "сервер ответил " + resp.status;
+        try {
+          const data = await resp.json();
+          if (typeof data === "string") msg = data;
+          else if (data && data.error) msg = data.error;
+        } catch { /* тело не JSON — оставляем стандартный текст */ }
+        fail(msg, y);
+        return;
+      }
+      render(await resp.json());
+    } catch (e) {
+      fail("Не удалось получить месяц: " + e.message, y);
+    }
+  }
+
+  function render(d) {
+    document.title = `${d.month_name} ${d.year}`;
+
+    const head = document.createElement("div");
+    head.className = "head";
+    const mname = document.createElement("span");
+    mname.className = "mname";
+    mname.textContent = d.month_name;      // название с сервера
+    const yr = document.createElement("span");
+    yr.className = "yr";
+    yr.textContent = d.year;
+    head.append(mname, yr);
+
+    const table = document.createElement("table");
+
+    const thead = document.createElement("thead");
+    const headRow = document.createElement("tr");
+    for (const wd of WEEKDAYS) {
+      const th = document.createElement("th");
+      th.textContent = wd;
+      headRow.append(th);
+    }
+    thead.append(headRow);
+    table.append(thead);
+
+    const tbody = document.createElement("tbody");
+    // weeks с сервера — фронт только рисует: 0 = пустая клетка
+    for (const week of d.weeks) {
+      const tr = document.createElement("tr");
+      for (const n of week) {
+        const td = document.createElement("td");
+        if (n === 0) {
+          td.className = "empty";
+        } else {
+          td.textContent = n;
+        }
+        tr.append(td);
+      }
+      tbody.append(tr);
+    }
+    table.append(tbody);
+
+    app.replaceChildren(head, table, backLink(d.year));
+  }
+
+  if (!y || !m) {
+    fail("Некорректная ссылка: нужны параметры ?year= и ?month=", null);
+  } else {
+    main();
+  }
+</script>
+</body>
+</html>

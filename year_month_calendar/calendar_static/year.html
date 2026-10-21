@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Календарь — год</title>
+<style>
+  /* Фиолетово-сиреневая гамма: современный минимализм */
+  :root {
+    --bg:    #f6f3fb;                     /* светлая сирень — фон */
+    --card:  #ffffff;
+    --ink:   #30215c;                     /* глубокий фиолетовый — текст */
+    --mut:   rgba(48, 33, 92, .50);
+    --line:  rgba(48, 33, 92, .10);
+    --edge:  #a68ee6;                     /* сиреневый акцент */
+    --shadow: 0 1px 2px rgba(48, 33, 92, .04),
+              0 12px 32px rgba(48, 33, 92, .08);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh;
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI",
+                 Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink);
+    background: var(--bg); padding: 40px 20px 64px;
+  }
+  .wrap { width: min(1180px, 100%); margin: 0 auto; }
+
+  .top {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 16px; margin-bottom: 30px;
+  }
+  h1 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: .01em; }
+  .year-pick { display: flex; align-items: center; gap: 10px; }
+  .year-pick label { color: var(--mut); font-size: 14px; font-weight: 500; }
+  select {
+    font: inherit; font-size: 15px; font-weight: 500; color: var(--ink);
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 10px; padding: 8px 12px; cursor: pointer;
+    transition: border-color .15s;
+  }
+  select:hover, select:focus { outline: none; border-color: var(--edge); }
+
+  #grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px;
+  }
+  @media (max-width: 980px) { #grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 720px) { #grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 460px) { #grid { grid-template-columns: 1fr; } }
+
+  .month-card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 16px; padding: 18px 16px 14px;
+    cursor: pointer;
+    transition: border-color .18s, box-shadow .18s, transform .18s;
+  }
+  .month-card:hover {
+    border-color: var(--edge); box-shadow: var(--shadow);
+    transform: translateY(-2px);
+  }
+  .month-card h2 {
+    margin: 0 0 12px; font-size: 13px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .14em; color: var(--mut);
+  }
+
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  th {
+    font-size: 10px; font-weight: 600; color: var(--mut);
+    text-align: center; padding-bottom: 6px; letter-spacing: .08em;
+  }
+  th:nth-child(6), th:nth-child(7) { color: var(--edge); }
+  td {
+    height: 26px; text-align: center; font-size: 12px; font-weight: 500;
+    border: 1px solid var(--line);
+  }
+  /* пустые ячейки сливаются с фоном карточки */
+  td.empty { border-color: transparent; background: transparent; }
+
+  .status { padding: 30px 0; font-size: 16px; color: var(--mut); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>Календарь</h1>
+    <div class="year-pick">
+      <label for="year">Год:</label>
+      <select id="year"></select>
+    </div>
+  </div>
+  <div id="grid"></div>
+</div>
+
+<script>
+  const WEEKDAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+  const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+  const DEFAULT_YEAR = 2026;
+
+  const grid = document.getElementById("grid");
+  const yearSel = document.getElementById("year");
+
+  // селектор годов
+  for (let y = 2020; y <= 2035; y++) {
+    const opt = document.createElement("option");
+    opt.value = y;
+    opt.textContent = y;
+    yearSel.append(opt);
+  }
+
+  // год можно передать ссылкой (?year=2028), иначе — дефолт
+  const fromUrl = new URLSearchParams(location.search).get("year");
+  const initialYear = (fromUrl && fromUrl.match(/^\d+$/)) ? fromUrl : DEFAULT_YEAR;
+  yearSel.value = initialYear;
+
+  async function loadYear(y) {
+    const status = document.createElement("p");
+    status.className = "status";
+    status.textContent = "Загрузка…";
+    grid.replaceChildren(status);
+    try {
+      // 12 запросов уходят одновременно — тот же gather, что в aiohttp
+      const datas = await Promise.all(
+        MONTHS.map(m => fetch(`/calendar/${y}/${m}`).then(r => {
+          if (!r.ok) throw new Error("сервер ответил " + r.status);
+          return r.json();
+        }))
+      );
+      renderYear(y, datas);
+    } catch (e) {
+      status.textContent = "Не удалось получить календарь: " + e.message;
+    }
+  }
+
+  function monthCard(y, m, data) {
+    const card = document.createElement("section");
+    card.className = "month-card";
+    card.title = "Открыть " + data.month_name;
+    card.addEventListener("click", () => {
+      location.href = `month.html?year=${y}&month=${m}`;
+    });
+
+    const h2 = document.createElement("h2");
+    h2.textContent = data.month_name;      // название месяца приходит с сервера
+    card.append(h2);
+
+    const table = document.createElement("table");
+
+    const thead = document.createElement("thead");
+    const headRow = document.createElement("tr");
+    for (const wd of WEEKDAYS) {
+      const th = document.createElement("th");
+      th.textContent = wd;
+      headRow.append(th);
+    }
+    thead.append(headRow);
+    table.append(thead);
+
+    const tbody = document.createElement("tbody");
+    // weeks с сервера — фронт только рисует: 0 = пустая клетка
+    for (const week of data.weeks) {
+      const tr = document.createElement("tr");
+      for (const n of week) {
+        const td = document.createElement("td");
+        if (n === 0) {
+          td.className = "empty";
+        } else {
+          td.textContent = n;
+        }
+        tr.append(td);
+      }
+      tbody.append(tr);
+    }
+    table.append(tbody);
+    card.append(table);
+    return card;
+  }
+
+  function renderYear(y, datas) {
+    grid.replaceChildren();
+    MONTHS.forEach((m, i) => grid.append(monthCard(y, m, datas[i])));
+  }
+
+  yearSel.addEventListener("change", () => loadYear(yearSel.value));
+  loadYear(yearSel.value);
+</script>
+</body>
+</html>
